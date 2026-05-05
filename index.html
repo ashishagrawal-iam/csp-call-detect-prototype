@@ -4,22 +4,51 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CSP कॉल डिटेक्ट — Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700&family=Noto+Sans+Devanagari:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --wiom-orange: #FF6B2C;
-    --wiom-orange-dark: #E55A1F;
-    --wiom-dark: #1A1A1A;
-    --wiom-bg: #F8F6F2;
-    --wiom-card: #FFFFFF;
-    --wiom-muted: #6B6B6B;
-    --wiom-success: #2D8F4E;
-    --wiom-success-bg: #E8F4EA;
-    --wiom-warn-bg: #FFF0E5;
-    --wiom-divider: #ECE8E0;
+    /* Wiom Design System — brand */
+    --w-brand: #D9008D;
+    --w-brand-dark: #B30074;
+    --w-brand-100: #FFE5F6;
+    /* neutrals */
+    --w-text: #161021;
+    --w-text-secondary: #665E75;
+    --w-muted: #A7A1B2;
+    --w-surface: #FAF9FC;
+    --w-bg-lavender: #E8E4F0;
+    --w-card: #FFFFFF;
+    --w-border: #E8E4F0;
+    --w-input-border: #D7D3E0;
+    /* semantic */
+    --w-success: #008043;
+    --w-success-bg: #E1FAED;
+    --w-warning: #B85C00;
+    --w-warning-bg: #FFE6CC;
+    --w-error: #D92130;
+    /* shadows */
+    --w-shadow-1: 0 1px 3px rgba(0,0,0,0.15);
+    --w-shadow-2: 0 2px 6px rgba(0,0,0,0.15);
+    --w-shadow-4: 0 4px 12px rgba(0,0,0,0.15);
+    --w-pink-glow: 0 4px 12px rgba(217,43,144,0.30);
+
+    /* legacy aliases mapped to Wiom for incremental migration */
+    --wiom-orange: var(--w-brand);
+    --wiom-orange-dark: var(--w-brand-dark);
+    --wiom-dark: var(--w-text);
+    --wiom-bg: var(--w-surface);
+    --wiom-card: var(--w-card);
+    --wiom-muted: var(--w-text-secondary);
+    --wiom-success: var(--w-success);
+    --wiom-success-bg: var(--w-success-bg);
+    --wiom-warn-bg: var(--w-warning-bg);
+    --wiom-divider: var(--w-border);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; font-family: inherit; }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Mukta", Roboto, sans-serif;
+    font-family: "Noto Sans", "Noto Sans Devanagari", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     background: linear-gradient(135deg, #2c2c2c 0%, #4a4a4a 100%);
     min-height: 100vh;
     display: flex;
@@ -76,15 +105,15 @@
   }
   .view#view-dialer .statusbar { color: rgba(255,255,255,0.9); }
 
-  /* HOME */
+  /* HOME (Wiom app surfaces) */
+  #view-home { background: var(--w-bg-lavender); }
   .home-header {
-    padding: 14px 20px 18px;
-    background: linear-gradient(135deg, var(--wiom-orange), var(--wiom-orange-dark));
-    color: white;
-    border-radius: 0 0 20px 20px;
+    padding: 16px 20px 20px;
+    background: var(--w-brand);
+    color: var(--w-surface);
   }
-  .home-header h1 { font-size: 20px; font-weight: 700; }
-  .home-header p { font-size: 13px; opacity: 0.92; margin-top: 4px; }
+  .home-header h1 { font-size: 20px; font-weight: 700; line-height: 28px; }
+  .home-header p { font-size: 14px; font-weight: 400; line-height: 20px; opacity: 0.92; margin-top: 4px; }
 
   .task-list {
     flex: 1;
@@ -92,47 +121,49 @@
     padding: 16px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
+    background: var(--w-bg-lavender);
   }
   .section-label {
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--wiom-muted);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--w-text-secondary);
     text-transform: uppercase;
-    letter-spacing: 0.6px;
-    padding: 4px 4px 6px;
+    letter-spacing: 0.5px;
+    padding: 4px 4px 4px;
+    line-height: 16px;
   }
   .task-card {
-    background: var(--wiom-card);
-    border-radius: 14px;
-    padding: 14px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    background: var(--w-card);
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: var(--w-shadow-2);
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
     cursor: pointer;
     transition: transform 0.12s, box-shadow 0.12s;
     border: 1.5px solid transparent;
   }
-  .task-card:active { transform: scale(0.98); border-color: var(--wiom-orange); }
+  .task-card:active { transform: scale(0.98); border-color: var(--w-brand); }
   .task-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
-  .task-name { font-size: 15px; font-weight: 700; color: var(--wiom-dark); }
-  .task-type { font-size: 10px; padding: 3px 8px; border-radius: 8px; font-weight: 700; white-space: nowrap; }
-  .task-type.new { background: var(--wiom-success-bg); color: var(--wiom-success); }
-  .task-type.service { background: var(--wiom-warn-bg); color: var(--wiom-orange-dark); }
-  .task-meta { font-size: 13px; color: var(--wiom-muted); }
-  .task-phone { font-size: 13px; color: var(--wiom-orange); font-weight: 600; margin-top: 2px; }
+  .task-name { font-size: 16px; font-weight: 700; line-height: 24px; color: var(--w-text); }
+  .task-type { font-size: 12px; padding: 2px 8px; border-radius: 4px; font-weight: 600; line-height: 16px; white-space: nowrap; }
+  .task-type.new { background: var(--w-success-bg); color: var(--w-success); }
+  .task-type.service { background: var(--w-warning-bg); color: var(--w-warning); }
+  .task-meta { font-size: 14px; font-weight: 400; line-height: 20px; color: var(--w-text-secondary); }
+  .task-phone { font-size: 14px; color: var(--w-brand); font-weight: 600; line-height: 20px; margin-top: 2px; }
 
   .fab {
     position: absolute;
     bottom: 24px; right: 20px;
     width: 56px; height: 56px;
-    border-radius: 28px;
-    background: var(--wiom-orange);
-    color: white;
+    border-radius: 16px;
+    background: var(--w-brand);
+    color: var(--w-surface);
     border: none;
     font-size: 22px;
-    box-shadow: 0 8px 20px rgba(255,107,44,0.45);
+    box-shadow: var(--w-pink-glow);
     cursor: pointer;
     z-index: 5;
     transition: transform 0.15s;
@@ -304,12 +335,14 @@
   .toast {
     position: absolute;
     top: 60px; left: 16px; right: 16px;
-    background: var(--wiom-dark);
-    color: white;
+    background: var(--w-text);
+    color: var(--w-surface);
     padding: 12px 16px;
     border-radius: 12px;
-    font-size: 13px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 20px;
+    box-shadow: var(--w-shadow-4);
     transform: translateY(-100px);
     opacity: 0;
     transition: all 0.3s;
@@ -319,13 +352,13 @@
     gap: 10px;
   }
   .toast.show { transform: translateY(0); opacity: 1; }
-  .toast .dot { width: 8px; height: 8px; border-radius: 4px; background: var(--wiom-orange); flex-shrink: 0; }
+  .toast .dot { width: 8px; height: 8px; border-radius: 888px; background: var(--w-brand); flex-shrink: 0; }
 
-  /* BOTTOMSHEET */
+  /* BOTTOMSHEET (Wiom) */
   .backdrop {
     position: absolute;
     inset: 0;
-    background: rgba(0,0,0,0.5);
+    background: rgba(22,16,33,0.5);
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.3s;
@@ -336,7 +369,7 @@
   .sheet {
     position: absolute;
     bottom: 0; left: 0; right: 0;
-    background: var(--wiom-card);
+    background: var(--w-surface);
     border-radius: 24px 24px 0 0;
     padding: 8px 0 24px;
     transform: translateY(110%);
@@ -345,113 +378,120 @@
     max-height: 82%;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 -8px 30px rgba(0,0,0,0.15);
+    box-shadow: 0 -4px 12px rgba(22,16,33,0.15);
   }
   .sheet.show { transform: translateY(0); }
   .sheet-handle {
     width: 36px; height: 4px;
-    background: #D4D0CA;
-    border-radius: 2px;
-    margin: 8px auto 14px;
+    background: var(--w-input-border);
+    border-radius: 888px;
+    margin: 8px auto 16px;
   }
   .sheet-header { padding: 0 20px 4px; }
-  .sheet-title { font-size: 18px; font-weight: 700; color: var(--wiom-dark); line-height: 1.3; }
-  .sheet-sub { font-size: 13px; color: var(--wiom-muted); margin-top: 4px; line-height: 1.4; }
-  .sheet-body { padding: 14px 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+  .sheet-title { font-size: 20px; font-weight: 700; color: var(--w-text); line-height: 28px; }
+  .sheet-sub { font-size: 14px; font-weight: 400; color: var(--w-text-secondary); margin-top: 8px; line-height: 20px; }
+  .sheet-body { padding: 16px 16px 8px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
   .sheet-task {
-    background: var(--wiom-bg);
-    border-radius: 14px;
-    padding: 14px;
+    background: var(--w-card);
+    border-radius: 12px;
+    padding: 16px;
     display: flex;
     align-items: center;
     gap: 12px;
     cursor: pointer;
-    border: 1.5px solid transparent;
-    transition: border-color 0.15s, transform 0.1s;
+    border: 1.5px solid var(--w-border);
+    transition: border-color 0.15s, transform 0.1s, box-shadow 0.15s;
   }
-  .sheet-task:active { border-color: var(--wiom-orange); transform: scale(0.99); }
+  .sheet-task:active { border-color: var(--w-brand); transform: scale(0.99); box-shadow: var(--w-pink-glow); }
   .sheet-task .icon {
-    width: 42px; height: 42px;
-    border-radius: 21px;
-    background: white;
+    width: 40px; height: 40px;
+    border-radius: 888px;
+    background: var(--w-brand-100);
     display: flex; align-items: center; justify-content: center;
     font-size: 18px;
     flex-shrink: 0;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
   }
   .sheet-task-info { flex: 1; min-width: 0; }
-  .sheet-task-name { font-size: 14px; font-weight: 700; color: var(--wiom-dark); }
-  .sheet-task-meta { font-size: 12px; color: var(--wiom-muted); margin-top: 2px; }
+  .sheet-task-name { font-size: 16px; font-weight: 700; line-height: 24px; color: var(--w-text); }
+  .sheet-task-meta { font-size: 14px; font-weight: 400; line-height: 20px; color: var(--w-text-secondary); margin-top: 2px; }
   .sheet-task-tag {
     display: inline-block;
-    font-size: 10px;
-    font-weight: 700;
-    padding: 2px 7px;
-    border-radius: 6px;
-    margin-top: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 16px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-top: 6px;
   }
-  .sheet-task-tag.new { background: var(--wiom-success-bg); color: var(--wiom-success); }
-  .sheet-task-tag.service { background: var(--wiom-warn-bg); color: var(--wiom-orange-dark); }
-  .sheet-arrow { color: var(--wiom-muted); font-size: 22px; font-weight: 300; }
+  .sheet-task-tag.new { background: var(--w-success-bg); color: var(--w-success); }
+  .sheet-task-tag.service { background: var(--w-warning-bg); color: var(--w-warning); }
+  .sheet-arrow { color: var(--w-muted); font-size: 22px; font-weight: 400; }
 
   .sheet-footer {
-    padding: 10px 20px 0;
-    border-top: 1px solid var(--wiom-divider);
-    margin-top: 4px;
+    padding: 12px 20px 0;
+    border-top: 1px solid var(--w-border);
+    margin-top: 8px;
   }
   .sheet-skip {
     background: none;
     border: none;
-    color: var(--wiom-muted);
-    font-size: 13px;
+    color: var(--w-text-secondary);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 20px;
     width: 100%;
     text-align: center;
-    padding: 10px;
+    padding: 12px;
     cursor: pointer;
-    font-weight: 500;
   }
-  .sheet-skip:active { color: var(--wiom-dark); }
+  .sheet-skip:active { color: var(--w-text); }
 
-  /* TASK DETAIL */
+  /* TASK DETAIL (Wiom) */
+  #view-detail { background: var(--w-bg-lavender); }
   .detail-header {
     padding: 12px 16px;
-    background: white;
-    border-bottom: 1px solid var(--wiom-divider);
+    background: var(--w-card);
+    border-bottom: 1px solid var(--w-border);
     display: flex; align-items: center; gap: 12px;
   }
   .back-btn {
-    width: 36px; height: 36px;
-    border-radius: 18px;
-    background: var(--wiom-bg);
+    width: 40px; height: 40px;
+    border-radius: 888px;
+    background: var(--w-bg-lavender);
+    color: var(--w-text);
     border: none;
     font-size: 18px;
     cursor: pointer;
   }
-  .detail-title { font-size: 16px; font-weight: 700; flex: 1; }
+  .back-btn:active { background: var(--w-border); }
+  .detail-title { font-size: 16px; font-weight: 700; line-height: 24px; flex: 1; color: var(--w-text); }
   .detail-body { padding: 20px; flex: 1; overflow-y: auto; }
   .detail-card {
-    background: white;
+    background: var(--w-card);
     border-radius: 16px;
     padding: 8px 16px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-    margin-bottom: 16px;
+    box-shadow: var(--w-shadow-2);
+    margin-bottom: 20px;
   }
-  .detail-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--wiom-divider); font-size: 14px; align-items: center; }
+  .detail-row { display: flex; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid var(--w-border); font-size: 14px; align-items: center; line-height: 20px; }
   .detail-row:last-child { border: none; }
-  .detail-row .label { color: var(--wiom-muted); }
-  .detail-row .value { font-weight: 600; color: var(--wiom-dark); text-align: right; max-width: 60%; }
+  .detail-row .label { color: var(--w-text-secondary); font-weight: 400; }
+  .detail-row .value { font-weight: 600; color: var(--w-text); text-align: right; max-width: 60%; }
   .call-cta {
     width: 100%;
-    background: var(--wiom-orange);
-    color: white;
+    background: var(--w-brand);
+    color: var(--w-surface);
     border: none;
-    padding: 16px;
-    border-radius: 14px;
+    padding: 12px 16px;
+    height: 48px;
+    border-radius: 24px;
     font-size: 16px;
     font-weight: 700;
+    line-height: 24px;
     cursor: pointer;
-    box-shadow: 0 6px 16px rgba(255,107,44,0.35);
+    box-shadow: var(--w-pink-glow);
     transition: transform 0.12s;
+    font-family: inherit;
   }
   .call-cta:active { transform: scale(0.98); }
 
