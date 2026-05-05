@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CSP कॉल डिटेक्ट — Prototype</title>
+<style>
+  :root {
+    --wiom-orange: #FF6B2C;
+    --wiom-orange-dark: #E55A1F;
+    --wiom-dark: #1A1A1A;
+    --wiom-bg: #F8F6F2;
+    --wiom-card: #FFFFFF;
+    --wiom-muted: #6B6B6B;
+    --wiom-success: #2D8F4E;
+    --wiom-success-bg: #E8F4EA;
+    --wiom-warn-bg: #FFF0E5;
+    --wiom-divider: #ECE8E0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; font-family: inherit; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Mukta", Roboto, sans-serif;
+    background: linear-gradient(135deg, #2c2c2c 0%, #4a4a4a 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .phone {
+    width: 380px;
+    height: 780px;
+    background: #000;
+    border-radius: 48px;
+    padding: 12px;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.45), 0 0 0 2px #1a1a1a inset;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .screen {
+    width: 100%;
+    height: 100%;
+    background: var(--wiom-bg);
+    border-radius: 36px;
+    overflow: hidden;
+    position: relative;
+  }
+  .notch {
+    position: absolute;
+    top: 12px; left: 50%;
+    transform: translateX(-50%);
+    width: 120px; height: 28px;
+    background: #000;
+    border-radius: 0 0 16px 16px;
+    z-index: 100;
+  }
+  .view {
+    position: absolute;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+  }
+  .view.active { display: flex; }
+
+  .statusbar {
+    height: 44px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 0 24px 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--wiom-dark);
+  }
+  .view#view-dialer .statusbar { color: rgba(255,255,255,0.9); }
+
+  /* HOME */
+  .home-header {
+    padding: 14px 20px 18px;
+    background: linear-gradient(135deg, var(--wiom-orange), var(--wiom-orange-dark));
+    color: white;
+    border-radius: 0 0 20px 20px;
+  }
+  .home-header h1 { font-size: 20px; font-weight: 700; }
+  .home-header p { font-size: 13px; opacity: 0.92; margin-top: 4px; }
+
+  .task-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .section-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--wiom-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    padding: 4px 4px 6px;
+  }
+  .task-card {
+    background: var(--wiom-card);
+    border-radius: 14px;
+    padding: 14px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    cursor: pointer;
+    transition: transform 0.12s, box-shadow 0.12s;
+    border: 1.5px solid transparent;
+  }
+  .task-card:active { transform: scale(0.98); border-color: var(--wiom-orange); }
+  .task-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .task-name { font-size: 15px; font-weight: 700; color: var(--wiom-dark); }
+  .task-type { font-size: 10px; padding: 3px 8px; border-radius: 8px; font-weight: 700; white-space: nowrap; }
+  .task-type.new { background: var(--wiom-success-bg); color: var(--wiom-success); }
+  .task-type.service { background: var(--wiom-warn-bg); color: var(--wiom-orange-dark); }
+  .task-meta { font-size: 13px; color: var(--wiom-muted); }
+  .task-phone { font-size: 13px; color: var(--wiom-orange); font-weight: 600; margin-top: 2px; }
+
+  .fab {
+    position: absolute;
+    bottom: 24px; right: 20px;
+    width: 56px; height: 56px;
+    border-radius: 28px;
+    background: var(--wiom-orange);
+    color: white;
+    border: none;
+    font-size: 22px;
+    box-shadow: 0 8px 20px rgba(255,107,44,0.45);
+    cursor: pointer;
+    z-index: 5;
+    transition: transform 0.15s;
+  }
+  .fab:active { transform: scale(0.94); }
+
+  /* PHONE APP (native call log) */
+  .phoneapp {
+    background: #FFFFFF;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    color: #202124;
+  }
+  .phoneapp-header {
+    padding: 8px 16px 0;
+    background: #FFFFFF;
+  }
+  .phoneapp-search {
+    background: #F1F3F4;
+    border-radius: 24px;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 6px;
+  }
+  .phoneapp-search-icon { font-size: 16px; opacity: 0.6; }
+  .phoneapp-search-text { font-size: 14px; color: #5F6368; flex: 1; }
+  .phoneapp-search-avatar {
+    width: 28px; height: 28px;
+    border-radius: 14px;
+    background: #1A73E8;
+    color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600;
+  }
+  .phoneapp-tabs {
+    display: flex;
+    border-bottom: 1px solid #E8EAED;
+    margin-top: 12px;
+  }
+  .phoneapp-tab {
+    flex: 1;
+    text-align: center;
+    padding: 14px 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: #5F6368;
+    border-bottom: 3px solid transparent;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .phoneapp-tab.active {
+    color: #1A73E8;
+    border-bottom-color: #1A73E8;
+  }
+  .calllog-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px 0 100px;
+  }
+  .calllog-section {
+    font-size: 11px;
+    font-weight: 600;
+    color: #5F6368;
+    padding: 14px 16px 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .calllog-row {
+    display: flex;
+    align-items: center;
+    padding: 10px 16px;
+    gap: 14px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .calllog-row:active { background: #F1F3F4; }
+  .calllog-avatar {
+    width: 40px; height: 40px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 16px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .calllog-avatar.wiom { background: #FF6B2C; }
+  .calllog-avatar.c1 { background: #1A73E8; }
+  .calllog-avatar.c2 { background: #34A853; }
+  .calllog-avatar.c3 { background: #9334E6; }
+  .calllog-avatar.c4 { background: #EA4335; }
+  .calllog-info { flex: 1; min-width: 0; }
+  .calllog-name { font-size: 15px; font-weight: 500; color: #202124; }
+  .calllog-name.missed { color: #EA4335; }
+  .calllog-meta { display: flex; align-items: center; gap: 4px; margin-top: 2px; font-size: 12px; color: #5F6368; }
+  .calllog-arrow { font-size: 13px; }
+  .calllog-arrow.out { color: #5F6368; }
+  .calllog-arrow.in { color: #34A853; }
+  .calllog-arrow.missed { color: #EA4335; }
+  .calllog-call-icon {
+    width: 36px; height: 36px;
+    border-radius: 18px;
+    border: none;
+    background: transparent;
+    color: #1A73E8;
+    font-size: 18px;
+    cursor: pointer;
+  }
+  .calllog-call-icon:active { background: #E8F0FE; }
+
+  .phoneapp-fab {
+    position: absolute;
+    bottom: 28px; right: 20px;
+    width: 56px; height: 56px;
+    border-radius: 16px;
+    background: #1A73E8;
+    color: white;
+    border: none;
+    font-size: 22px;
+    box-shadow: 0 4px 12px rgba(26,115,232,0.35);
+    cursor: pointer;
+  }
+
+  /* In-call overlay (brief, on top of call log) */
+  .incall-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, #1a1a1a 0%, #000 100%);
+    color: white;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 100px;
+    z-index: 50;
+    border-radius: 36px;
+  }
+  .incall-overlay.show { display: flex; }
+  .incall-status { font-size: 13px; opacity: 0.7; margin-bottom: 12px; }
+  .incall-number { font-size: 28px; font-weight: 300; letter-spacing: 1.5px; }
+  .incall-name { font-size: 14px; opacity: 0.7; margin-top: 6px; }
+  .incall-timer { font-size: 15px; opacity: 0.7; margin-top: 16px; font-variant-numeric: tabular-nums; }
+  .end-call {
+    position: absolute;
+    bottom: 60px; left: 50%;
+    transform: translateX(-50%);
+    width: 64px; height: 64px;
+    border-radius: 32px;
+    background: #E5484D;
+    border: none;
+    color: white;
+    font-size: 26px;
+    cursor: pointer;
+    box-shadow: 0 8px 24px rgba(229,72,77,0.45);
+    transition: transform 0.15s;
+  }
+  .end-call:active { transform: translateX(-50%) scale(0.94); }
+  @keyframes pulseDot {
+    0%,100% { opacity: 0.7; }
+    50% { opacity: 1; }
+  }
+  .pulse-dot { animation: pulseDot 1.4s infinite; }
+
+  /* DETECTION TOAST (brief flash before sheet) */
+  .toast {
+    position: absolute;
+    top: 60px; left: 16px; right: 16px;
+    background: var(--wiom-dark);
+    color: white;
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 13px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    transform: translateY(-100px);
+    opacity: 0;
+    transition: all 0.3s;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast .dot { width: 8px; height: 8px; border-radius: 4px; background: var(--wiom-orange); flex-shrink: 0; }
+
+  /* BOTTOMSHEET */
+  .backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+    z-index: 10;
+  }
+  .backdrop.show { opacity: 1; pointer-events: auto; }
+
+  .sheet {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    background: var(--wiom-card);
+    border-radius: 24px 24px 0 0;
+    padding: 8px 0 24px;
+    transform: translateY(110%);
+    transition: transform 0.4s cubic-bezier(.2,.8,.2,1);
+    z-index: 20;
+    max-height: 82%;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 -8px 30px rgba(0,0,0,0.15);
+  }
+  .sheet.show { transform: translateY(0); }
+  .sheet-handle {
+    width: 36px; height: 4px;
+    background: #D4D0CA;
+    border-radius: 2px;
+    margin: 8px auto 14px;
+  }
+  .sheet-header { padding: 0 20px 4px; }
+  .sheet-title { font-size: 18px; font-weight: 700; color: var(--wiom-dark); line-height: 1.3; }
+  .sheet-sub { font-size: 13px; color: var(--wiom-muted); margin-top: 4px; line-height: 1.4; }
+  .sheet-body { padding: 14px 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+  .sheet-task {
+    background: var(--wiom-bg);
+    border-radius: 14px;
+    padding: 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    border: 1.5px solid transparent;
+    transition: border-color 0.15s, transform 0.1s;
+  }
+  .sheet-task:active { border-color: var(--wiom-orange); transform: scale(0.99); }
+  .sheet-task .icon {
+    width: 42px; height: 42px;
+    border-radius: 21px;
+    background: white;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+  .sheet-task-info { flex: 1; min-width: 0; }
+  .sheet-task-name { font-size: 14px; font-weight: 700; color: var(--wiom-dark); }
+  .sheet-task-meta { font-size: 12px; color: var(--wiom-muted); margin-top: 2px; }
+  .sheet-task-tag {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 6px;
+    margin-top: 4px;
+  }
+  .sheet-task-tag.new { background: var(--wiom-success-bg); color: var(--wiom-success); }
+  .sheet-task-tag.service { background: var(--wiom-warn-bg); color: var(--wiom-orange-dark); }
+  .sheet-arrow { color: var(--wiom-muted); font-size: 22px; font-weight: 300; }
+
+  .sheet-footer {
+    padding: 10px 20px 0;
+    border-top: 1px solid var(--wiom-divider);
+    margin-top: 4px;
+  }
+  .sheet-skip {
+    background: none;
+    border: none;
+    color: var(--wiom-muted);
+    font-size: 13px;
+    width: 100%;
+    text-align: center;
+    padding: 10px;
+    cursor: pointer;
+    font-weight: 500;
+  }
+  .sheet-skip:active { color: var(--wiom-dark); }
+
+  /* TASK DETAIL */
+  .detail-header {
+    padding: 12px 16px;
+    background: white;
+    border-bottom: 1px solid var(--wiom-divider);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .back-btn {
+    width: 36px; height: 36px;
+    border-radius: 18px;
+    background: var(--wiom-bg);
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+  }
+  .detail-title { font-size: 16px; font-weight: 700; flex: 1; }
+  .detail-body { padding: 20px; flex: 1; overflow-y: auto; }
+  .detail-card {
+    background: white;
+    border-radius: 16px;
+    padding: 8px 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    margin-bottom: 16px;
+  }
+  .detail-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--wiom-divider); font-size: 14px; align-items: center; }
+  .detail-row:last-child { border: none; }
+  .detail-row .label { color: var(--wiom-muted); }
+  .detail-row .value { font-weight: 600; color: var(--wiom-dark); text-align: right; max-width: 60%; }
+  .call-cta {
+    width: 100%;
+    background: var(--wiom-orange);
+    color: white;
+    border: none;
+    padding: 16px;
+    border-radius: 14px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 6px 16px rgba(255,107,44,0.35);
+    transition: transform 0.12s;
+  }
+  .call-cta:active { transform: scale(0.98); }
+
+  /* DEMO CONTROLS */
+  .controls {
+    display: flex; gap: 8px; flex-wrap: wrap;
+    justify-content: center;
+    max-width: 420px;
+  }
+  .controls button {
+    background: rgba(255,255,255,0.08);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.15);
+    padding: 8px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .controls button:hover { background: rgba(255,255,255,0.18); }
+  .info {
+    color: rgba(255,255,255,0.65);
+    font-size: 12px;
+    text-align: center;
+    max-width: 420px;
+    line-height: 1.6;
+  }
+  .info strong { color: rgba(255,255,255,0.9); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 0.7; }
+    50% { opacity: 1; }
+  }
+  .pulse { animation: pulse 1.4s infinite; }
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="notch"></div>
+  <div class="screen">
+
+    <!-- HOME VIEW -->
+    <div class="view" id="view-home">
+      <div class="statusbar"><span>9:41</span><span>📶 🔋</span></div>
+      <div class="home-header">
+        <h1>नमस्ते, राजेश जी 👋</h1>
+        <p>आज के लिए 4 काम बाकी हैं</p>
+      </div>
+      <div class="task-list">
+        <div class="section-label">आज के काम</div>
+
+        <div class="task-card" onclick="goToDetail('ramesh')">
+          <div class="task-row">
+            <div class="task-name">रमेश कुमार</div>
+            <div class="task-type new">नया कनेक्शन</div>
+          </div>
+          <div class="task-meta">सेक्टर 12, गली नं. 4</div>
+          <div class="task-phone">📞 98XXXX1234</div>
+        </div>
+
+        <div class="task-card" onclick="goToDetail('sunita')">
+          <div class="task-row">
+            <div class="task-name">सुनीता देवी</div>
+            <div class="task-type service">सर्विस टिकट</div>
+          </div>
+          <div class="task-meta">इंटरनेट धीमा है · कल से</div>
+          <div class="task-phone">📞 98XXXX5678</div>
+        </div>
+
+        <div class="task-card" onclick="goToDetail('mohan')">
+          <div class="task-row">
+            <div class="task-name">मोहन लाल</div>
+            <div class="task-type new">नया कनेक्शन</div>
+          </div>
+          <div class="task-meta">सेक्टर 8, मेन रोड</div>
+          <div class="task-phone">📞 98XXXX9012</div>
+        </div>
+
+        <div class="task-card" onclick="goToDetail('priya')">
+          <div class="task-row">
+            <div class="task-name">प्रिया शर्मा</div>
+            <div class="task-type service">सर्विस टिकट</div>
+          </div>
+          <div class="task-meta">राउटर रीसेट · आज सुबह</div>
+          <div class="task-phone">📞 98XXXX3456</div>
+        </div>
+      </div>
+
+      <button class="fab" onclick="startDialer()" title="Demo: dial Wiom IVR">📞</button>
+    </div>
+
+    <!-- PHONE APP / CALL LOG VIEW -->
+    <div class="view active" id="view-dialer">
+      <div class="statusbar"><span>9:41</span><span>📶 🔋</span></div>
+      <div class="phoneapp">
+        <div class="phoneapp-header">
+          <div class="phoneapp-search">
+            <span class="phoneapp-search-icon">🔍</span>
+            <span class="phoneapp-search-text">Search contacts &amp; places</span>
+            <div class="phoneapp-search-avatar">R</div>
+          </div>
+          <div class="phoneapp-tabs">
+            <div class="phoneapp-tab">Favourites</div>
+            <div class="phoneapp-tab active">Recents</div>
+            <div class="phoneapp-tab">Contacts</div>
+          </div>
+        </div>
+
+        <div class="calllog-list">
+          <div class="calllog-section">Today</div>
+
+          <div class="calllog-row" onclick="simulateCall()">
+            <div class="calllog-avatar wiom">W</div>
+            <div class="calllog-info">
+              <div class="calllog-name">Wiom IVR</div>
+              <div class="calllog-meta"><span class="calllog-arrow out">↗</span> Outgoing · 1800-XXX-WIOM · 2 min ago</div>
+            </div>
+            <button class="calllog-call-icon" onclick="event.stopPropagation(); simulateCall()">📞</button>
+          </div>
+
+          <div class="calllog-row">
+            <div class="calllog-avatar c1">A</div>
+            <div class="calllog-info">
+              <div class="calllog-name">Anil Bhaiya</div>
+              <div class="calllog-meta"><span class="calllog-arrow in">↙</span> Incoming · 9:12 AM</div>
+            </div>
+            <button class="calllog-call-icon">📞</button>
+          </div>
+
+          <div class="calllog-row">
+            <div class="calllog-avatar c2">98</div>
+            <div class="calllog-info">
+              <div class="calllog-name">98XXXX1234</div>
+              <div class="calllog-meta"><span class="calllog-arrow out">↗</span> Outgoing · 8:45 AM</div>
+            </div>
+            <button class="calllog-call-icon">📞</button>
+          </div>
+
+          <div class="calllog-section">Yesterday</div>
+
+          <div class="calllog-row">
+            <div class="calllog-avatar c3">M</div>
+            <div class="calllog-info">
+              <div class="calllog-name missed">Mummy</div>
+              <div class="calllog-meta"><span class="calllog-arrow missed">⤫</span> Missed · 7:32 PM</div>
+            </div>
+            <button class="calllog-call-icon">📞</button>
+          </div>
+
+          <div class="calllog-row">
+            <div class="calllog-avatar c4">98</div>
+            <div class="calllog-info">
+              <div class="calllog-name">98XXXX5678</div>
+              <div class="calllog-meta"><span class="calllog-arrow out">↗</span> Outgoing · 5:18 PM (3) </div>
+            </div>
+            <button class="calllog-call-icon">📞</button>
+          </div>
+
+          <div class="calllog-row">
+            <div class="calllog-avatar c1">L</div>
+            <div class="calllog-info">
+              <div class="calllog-name">LCO Sahab</div>
+              <div class="calllog-meta"><span class="calllog-arrow in">↙</span> Incoming · 2:04 PM</div>
+            </div>
+            <button class="calllog-call-icon">📞</button>
+          </div>
+
+          <div class="calllog-row">
+            <div class="calllog-avatar c2">R</div>
+            <div class="calllog-info">
+              <div class="calllog-name">Rakesh Tiwari</div>
+              <div class="calllog-meta"><span class="calllog-arrow out">↗</span> Outgoing · 11:50 AM</div>
+            </div>
+            <button class="calllog-call-icon">📞</button>
+          </div>
+        </div>
+
+        <button class="phoneapp-fab" title="Dialpad">⌗</button>
+
+        <!-- In-call overlay (shown briefly when user taps the IVR row) -->
+        <div class="incall-overlay" id="incall-overlay">
+          <div class="incall-status pulse-dot" id="call-status">कॉल मिला रहे हैं...</div>
+          <div class="incall-number">1800-XXX-WIOM</div>
+          <div class="incall-name">Wiom IVR</div>
+          <div class="incall-timer" id="timer">00:00</div>
+          <button class="end-call" onclick="endCall()" title="Hang up">📵</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TASK DETAIL VIEW -->
+    <div class="view" id="view-detail">
+      <div class="statusbar"><span>9:42</span><span>📶 🔋</span></div>
+      <div class="detail-header">
+        <button class="back-btn" onclick="showView('home')">←</button>
+        <div class="detail-title" id="detail-title">कस्टमर डिटेल</div>
+      </div>
+      <div class="detail-body">
+        <div class="detail-card">
+          <div class="detail-row"><span class="label">नाम</span><span class="value" id="d-name">—</span></div>
+          <div class="detail-row"><span class="label">मोबाइल</span><span class="value" id="d-phone">—</span></div>
+          <div class="detail-row"><span class="label">पता</span><span class="value" id="d-addr">—</span></div>
+          <div class="detail-row"><span class="label">टिकट</span><span class="value" id="d-type">—</span></div>
+        </div>
+        <button class="call-cta" onclick="startDialer()">📞 कस्टमर को कॉल करें</button>
+      </div>
+    </div>
+
+    <!-- GLOBAL OVERLAYS (float above any view) -->
+    <div class="toast" id="toast">
+      <div class="dot"></div>
+      <div>हाल ही में IVR कॉल पकड़ी गई</div>
+    </div>
+    <div class="backdrop" id="backdrop" onclick="closeSheet()"></div>
+    <div class="sheet" id="sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <div class="sheet-title">क्या आप इनमें से किसी से बात करना चाहते हैं?</div>
+        <div class="sheet-sub">आप इनको डायरेक्ट चुन कर कॉल कर सकते हैं</div>
+      </div>
+      <div class="sheet-body">
+        <div class="sheet-task" onclick="closeSheetAndOpen('ramesh')">
+          <div class="icon">🆕</div>
+          <div class="sheet-task-info">
+            <div class="sheet-task-name">सेक्टर 12, गली 4</div>
+            <div class="sheet-task-meta">98XXXX1234</div>
+            <span class="sheet-task-tag new">नया कनेक्शन</span>
+          </div>
+          <div class="sheet-arrow">›</div>
+        </div>
+        <div class="sheet-task" onclick="closeSheetAndOpen('sunita')">
+          <div class="icon">🛠️</div>
+          <div class="sheet-task-info">
+            <div class="sheet-task-name">सुनीता देवी</div>
+            <div class="sheet-task-meta">इंटरनेट धीमा · कल से</div>
+            <span class="sheet-task-tag service">सर्विस टिकट</span>
+          </div>
+          <div class="sheet-arrow">›</div>
+        </div>
+        <div class="sheet-task" onclick="closeSheetAndOpen('priya')">
+          <div class="icon">🛠️</div>
+          <div class="sheet-task-info">
+            <div class="sheet-task-name">प्रिया शर्मा</div>
+            <div class="sheet-task-meta">राउटर रीसेट · आज सुबह</div>
+            <span class="sheet-task-tag service">सर्विस टिकट</span>
+          </div>
+          <div class="sheet-arrow">›</div>
+        </div>
+      </div>
+      <div class="sheet-footer">
+        <button class="sheet-skip" onclick="closeSheet()">इनमें से कोई नहीं · बाद में करूँगा</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="controls">
+  <button onclick="showView('home')">🏠 Home</button>
+  <button onclick="startDialer()">📞 Open Phone app</button>
+  <button onclick="simulateCall()">🔄 Auto-trigger call</button>
+  <button onclick="endCall()">📵 End call</button>
+  <button onclick="openSheet()">⬆️ Show sheet</button>
+  <button onclick="resetDemo()">↺ Reset</button>
+</div>
+<div class="info">
+  <strong>Flow:</strong> Tap orange 📞 → simulates calling Wiom IVR → tap red 📵 to end call → bottomsheet appears with potential matched tickets → pick one → see customer detail.
+</div>
+
+<script>
+  const customers = {
+    ramesh:  { name:'रमेश कुमार',   phone:'98XXXX1234', addr:'सेक्टर 12, गली 4',  type:'नया कनेक्शन' },
+    sunita:  { name:'सुनीता देवी',   phone:'98XXXX5678', addr:'सेक्टर 5, मकान 22', type:'सर्विस टिकट' },
+    mohan:   { name:'मोहन लाल',     phone:'98XXXX9012', addr:'सेक्टर 8, मेन रोड',  type:'नया कनेक्शन' },
+    priya:   { name:'प्रिया शर्मा',  phone:'98XXXX3456', addr:'सेक्टर 3, ब्लॉक B', type:'सर्विस टिकट' },
+  };
+
+  let timerInterval = null, sec = 0;
+
+  function showView(name) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-' + name).classList.add('active');
+  }
+
+  function startDialer() {
+    closeSheet();
+    showView('dialer');
+    document.getElementById('incall-overlay').classList.remove('show');
+    if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+  }
+
+  function simulateCall() {
+    const overlay = document.getElementById('incall-overlay');
+    overlay.classList.add('show');
+    sec = 0;
+    document.getElementById('timer').textContent = '00:00';
+    const status = document.getElementById('call-status');
+    status.textContent = 'कॉल मिला रहे हैं...';
+    status.classList.add('pulse-dot');
+
+    setTimeout(() => {
+      status.textContent = 'कॉल जुड़ी · Wiom IVR';
+      if (timerInterval) clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        sec++;
+        const m = String(Math.floor(sec / 60)).padStart(2, '0');
+        const s = String(sec % 60).padStart(2, '0');
+        document.getElementById('timer').textContent = m + ':' + s;
+      }, 1000);
+    }, 1500);
+  }
+
+  function endCall() {
+    if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+    document.getElementById('incall-overlay').classList.remove('show');
+    // stay on the call log view — sheet floats over it
+    showToast();
+    setTimeout(openSheet, 700);
+  }
+
+  function showToast() {
+    const t = document.getElementById('toast');
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 1800);
+  }
+
+  function openSheet() {
+    // float over whichever view is active (typically the call log)
+    document.getElementById('sheet').classList.add('show');
+    document.getElementById('backdrop').classList.add('show');
+  }
+
+  function closeSheet() {
+    document.getElementById('sheet').classList.remove('show');
+    document.getElementById('backdrop').classList.remove('show');
+  }
+
+  function closeSheetAndOpen(id) {
+    // tapping a customer in the sheet enters the Wiom app full view
+    closeSheet();
+    setTimeout(() => goToDetail(id), 280);
+  }
+
+  function goToDetail(id) {
+    const c = customers[id];
+    if (!c) return;
+    document.getElementById('detail-title').textContent = c.name;
+    document.getElementById('d-name').textContent = c.name;
+    document.getElementById('d-phone').textContent = c.phone;
+    document.getElementById('d-addr').textContent = c.addr;
+    document.getElementById('d-type').textContent = c.type;
+    showView('detail');
+  }
+
+  function resetDemo() {
+    if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+    closeSheet();
+    document.getElementById('incall-overlay').classList.remove('show');
+    showView('dialer');
+  }
+</script>
+
+</body>
+</html>
